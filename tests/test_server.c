@@ -440,7 +440,7 @@ KT_TEST(connection_limit_rejects_excess)
 	int c = tcp_connect(sn_server_tcp_port(s));
 
 	KT_ASSERT(closed_by_peer(c));
-	KT_EQ(stats_of(s).rejected, 1);
+	WAIT_STAT(s, rejected, ==, 1);
 	KT_EQ(send(a, "a", 1, 0), 1);
 	KT_EQ(recv(a, buf, 1, 0), 1);
 	KT_EQ(send(b, "b", 1, 0), 1);
@@ -639,7 +639,8 @@ KT_TEST(udp_echo_roundtrips)
 	}
 	KT_EQ(ok, 500);
 	KT_EQ(stats_of(s).udp_in, 500);
-	KT_EQ(stats_of(s).udp_out, 500);
+	/* udp_out is counted after sendto() returns: the reply can win. */
+	WAIT_STAT(s, udp_out, ==, 500);
 	close(fd);
 	sn_server_destroy(s);
 }

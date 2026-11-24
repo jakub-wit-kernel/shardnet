@@ -160,16 +160,20 @@ static void conn_destroy(sn_conn *c, const char *why)
 	if (w->s->h.on_close)
 		w->s->h.on_close(c, w->s->ud);
 	sn_debug("conn %llx closed (%s)", (unsigned long long)c->id, why);
+	/*
+	 * Update counters before close(): once the peer can observe the
+	 * close, the stats already reflect it.
+	 */
+	STAT_SUB(w, pending_out, c->out.len);
+	STAT_ADD(w, closed, 1);
+	STAT_SUB(w, active, 1);
 	/* close() drops the fd from the epoll set. */
 	close(c->fd);
 	c->fd = -1;
 	c->state = CONN_DEAD;
 	lru_unlink(w, c);
-	STAT_SUB(w, pending_out, c->out.len);
 	sn_buf_free(&c->in);
 	sn_buf_free(&c->out);
-	STAT_ADD(w, closed, 1);
-	STAT_SUB(w, active, 1);
 	/*
 	 * Do not return the object to the pool yet: later events in the same
 	 * epoll_wait() batch may still point at it. reap_dead() frees it once
@@ -415,8 +419,8 @@ static void shed_on_emfile(struct worker *w)
 	int fd = accept4(w->lfd, NULL, NULL, SOCK_CLOEXEC);
 
 	if (fd >= 0) {
-		close(fd);
 		STAT_ADD(w, rejected, 1);
+		close(fd);
 	}
 	w->spare_fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
 }
@@ -445,8 +449,9 @@ static void accept_ready(struct worker *w, int64_t now)
 
 		c = w->draining ? NULL : sn_pool_alloc(&w->pool);
 		if (!c) {
-			close(fd);
+			/* Count first: once the peer sees the close, stats agree. */
 			STAT_ADD(w, rejected, 1);
+			close(fd);
 			continue;
 		}
 
