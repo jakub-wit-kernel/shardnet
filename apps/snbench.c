@@ -30,6 +30,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "cli.h"
 #include "shardnet/hist.h"
 
 #define RING		256	/* timestamp slots per connection */
@@ -330,14 +331,14 @@ int main(int argc, char **argv)
 	while ((opt = getopt_long(argc, argv, "", lo, NULL)) != -1) {
 		switch (opt) {
 		case 'h': o.host = optarg; break;
-		case 'p': o.port = atoi(optarg); break;
+		case 'p': o.port = (int)cli_long("port", optarg, 1, 65535); break;
 		case 'U': o.udp = 1; break;
-		case 't': o.threads = atoi(optarg); break;
-		case 'c': o.conns = atoi(optarg); break;
-		case 's': o.size = (size_t)atol(optarg); break;
-		case 'd': o.depth = atoi(optarg); break;
-		case 'D': o.duration = atof(optarg); break;
-		case 'W': o.warmup = atof(optarg); break;
+		case 't': o.threads = (int)cli_long("threads", optarg, 1, 1024); break;
+		case 'c': o.conns = (int)cli_long("conns", optarg, 1, 1000000); break;
+		case 's': o.size = (size_t)cli_long("size", optarg, 8, 64L << 20); break;
+		case 'd': o.depth = (int)cli_long("depth", optarg, 1, MAX_DEPTH); break;
+		case 'D': o.duration = cli_double("duration", optarg, 0.1, 86400); break;
+		case 'W': o.warmup = cli_double("warmup", optarg, 0, 3600); break;
 		default: usage(argv[0]);
 		}
 	}

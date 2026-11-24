@@ -313,7 +313,7 @@ KT_TEST(many_concurrent_connections_spread_over_workers)
 
 	for (int i = 0; i < THREADS; i++) {
 		jobs[i] = (struct client_job){ sn_server_tcp_port(s), PER,
-					       64 * 1024, 0 };
+					       (size_t)64 * 1024, 0 };
 		pthread_create(&th[i], NULL, client_thread, &jobs[i]);
 	}
 	for (int i = 0; i < THREADS; i++)
@@ -344,8 +344,8 @@ KT_TEST(backpressure_pauses_reading_and_bounds_memory)
 	uint8_t buf[16384];
 
 	base_config(&cfg, 1);
-	cfg.max_pending_out = 64 * 1024;
-	cfg.read_chunk = 16 * 1024;
+	cfg.max_pending_out = (size_t)64 * 1024;
+	cfg.read_chunk = (size_t)16 * 1024;
 	sn_server *s = start(&cfg, &t);
 
 	int fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -571,7 +571,7 @@ KT_TEST(drain_deadline_forces_stuck_connections_closed)
 	int small = 16 * 1024;
 
 	base_config(&cfg, 1);
-	cfg.max_pending_out = 32 * 1024;
+	cfg.max_pending_out = (size_t)32 * 1024;
 	sn_server *s = start(&cfg, &t);
 	int fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	struct sockaddr_in a = { .sin_family = AF_INET,

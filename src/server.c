@@ -680,9 +680,9 @@ void sn_config_init(sn_config *cfg)
 	cfg->udp_port = -1;
 	cfg->workers = cpus > 0 ? (int)cpus : 1;
 	cfg->max_conns_per_worker = 10000;
-	cfg->read_chunk = 64 * 1024;
-	cfg->max_pending_out = 1024 * 1024;
-	cfg->max_pending_in = 1024 * 1024;
+	cfg->read_chunk = (size_t)64 * 1024;
+	cfg->max_pending_out = (size_t)1024 * 1024;
+	cfg->max_pending_in = (size_t)1024 * 1024;
 	cfg->udp_max_datagram = 2048;
 	cfg->idle_timeout_ms = 0;
 	cfg->backlog = 1024;
@@ -695,7 +695,7 @@ static int bind_socket(const char *host, int type, int *port, int backlog)
 					      AI_NUMERICSERV,
 				  .ai_socktype = type };
 	struct addrinfo *ai = NULL;
-	struct sockaddr_storage ss;
+	struct sockaddr_storage ss = { 0 };
 	socklen_t sslen = sizeof(ss);
 	char portstr[8];
 	int fd, one = 1, err;

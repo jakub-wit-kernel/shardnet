@@ -39,7 +39,11 @@ typedef struct sn_handlers {
 	 */
 	ssize_t (*on_data)(sn_conn *c, const uint8_t *data, size_t len,
 			   void *ud);
-	/* The connection is about to be closed and freed. Optional. */
+	/*
+	 * The connection is about to be closed and freed. Optional. This may
+	 * run re-entrantly, inside an sn_conn_send() or sn_conn_close() called
+	 * from on_data; the sn_conn stays valid until on_data returns.
+	 */
 	void (*on_close)(sn_conn *c, void *ud);
 	/* A UDP datagram arrived on @worker. Required if udp_port is set. */
 	void (*on_datagram)(sn_server *s, int worker,

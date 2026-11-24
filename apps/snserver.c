@@ -17,6 +17,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "cli.h"
 #include "shardnet/log.h"
 #include "shardnet/shardnet.h"
 
@@ -88,13 +89,13 @@ int main(int argc, char **argv)
 	while ((opt = getopt_long(argc, argv, "", opts, NULL)) != -1) {
 		switch (opt) {
 		case 'h': cfg.host = optarg; break;
-		case 't': cfg.tcp_port = atoi(optarg); break;
-		case 'u': cfg.udp_port = atoi(optarg); break;
-		case 'w': cfg.workers = atoi(optarg); break;
-		case 'm': cfg.max_conns_per_worker = atoi(optarg); break;
-		case 'i': cfg.idle_timeout_ms = atoi(optarg); break;
-		case 's': stats_sec = atoi(optarg); break;
-		case 'd': drain_ms = atoi(optarg); break;
+		case 't': cfg.tcp_port = (int)cli_long("tcp-port", optarg, -1, 65535); break;
+		case 'u': cfg.udp_port = (int)cli_long("udp-port", optarg, -1, 65535); break;
+		case 'w': cfg.workers = (int)cli_long("workers", optarg, 1, 1024); break;
+		case 'm': cfg.max_conns_per_worker = (int)cli_long("max-conns", optarg, 1, 1000000); break;
+		case 'i': cfg.idle_timeout_ms = (int)cli_long("idle-ms", optarg, 0, 86400000); break;
+		case 's': stats_sec = (int)cli_long("stats-sec", optarg, 0, 86400); break;
+		case 'd': drain_ms = (int)cli_long("drain-ms", optarg, 0, 3600000); break;
 		default: usage(argv[0]);
 		}
 	}
