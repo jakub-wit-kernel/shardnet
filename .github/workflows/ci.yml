@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (${{ matrix.cc }}${{ matrix.san && format(', {0}', matrix.san) || '' }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+        san: ["", "address,undefined", "thread"]
+    steps:
+      - uses: actions/checkout@v4
+      # Ubuntu 24.04 kernels use 32 bits of mmap ASLR, which some sanitizer
+      # runtimes (TSan in particular) cannot handle.
+      - name: Relax mmap ASLR for sanitizers
+        if: matrix.san != ''
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Configure
+        run: >
+          cmake -S . -B build -DCMAKE_C_COMPILER=${{ matrix.cc }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.san && 'Debug' || 'RelWithDebInfo' }}
+          -DSN_SANITIZE=${{ matrix.san }}
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        working-directory: build
+        run: ctest --output-on-failure
+
+  valgrind:
+    name: Tests under valgrind
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y valgrind
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build -j
+      - name: memcheck
+        working-directory: build
+        run: |
+          for t in test_buf test_pool test_hist test_server; do
+            valgrind --error-exitcode=1 --leak-check=full \
+              --show-leak-kinds=definite,indirect -q "./$t"
+          done
+
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang-tidy
+      - run: cmake -S . -B build
+      - run: |
+          for f in src/*.c apps/*.c tests/*.c; do
+            clang-tidy -quiet -p build "$f"
+          done
+
+  benchmark:
+    name: Benchmark and memory profile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+      - name: Idle-connection memory
+        run: |
+          ulimit -n 65536
+          python3 scripts/idle_memory.py build/snserver 10000 | tee mem.txt
+      - name: Throughput / latency matrix
+        run: |
+          ulimit -n 65536
+          scripts/bench.sh build 5 | tee bench.md
+      - name: Publish to job summary
+        run: |
+          {
+            echo "## Benchmark (GitHub-hosted runner)"
+            cat bench.md
+            echo
+            echo '```'
+            cat mem.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
