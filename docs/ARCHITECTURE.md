@@ -125,9 +125,10 @@ reuse cannot misroute them.
 - **Release on drain.** Input and output buffers are freed as soon as they
   empty.
 
-The measured result (`scripts/idle_memory.py`) is about **106 bytes of
-server RSS per idle connection**: 5,000 idle connections added 520 KiB, the
-size of the connection objects themselves. After every connection had
+The measured result (`scripts/idle_memory.py`) is about **106-143 bytes of
+server RSS per idle connection**: 5,000 idle connections added 520 KiB in the
+dev sandbox, and 10,000 added 1,400 KiB on a GitHub runner. That is roughly
+the size of the connection objects themselves. After every connection had
 echoed a message and gone idle again, RSS was unchanged. This figure counts
 user-space memory only; the kernel's socket structures and buffers come on
 top.

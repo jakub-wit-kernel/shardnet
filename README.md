@@ -29,8 +29,8 @@ life, so the hot path takes no locks.
   memory without bound.
 - **Memory-lean.** Reads go to a shared per-worker scratch buffer; only
   unconsumed input and unsent output are buffered, and buffers are freed
-  when they drain. Measured cost: **about 106 bytes of user-space memory per
-  idle connection**.
+  when they drain. Measured cost: **about 106-143 bytes of user-space memory
+  per idle connection**.
 - **Graceful shutdown.** Stop accepting, flush, close, and force-close at a
   deadline.
 - **Robustness details:**
@@ -108,10 +108,16 @@ Every callback for a connection runs on that connection's worker thread.
 
 ## Measured results
 
-**Memory** (`scripts/idle_memory.py`, 5,000 idle connections): server RSS
-grew 520 KiB, which is **106 bytes per connection**. It did not grow after
-every connection echoed a message and went idle again. Kernel socket memory
-is not included.
+**Memory** (`scripts/idle_memory.py`): server RSS grew **106 bytes per idle
+connection** with 5,000 connections in the dev sandbox, and **143 bytes** with
+10,000 on a GitHub-hosted runner. It did not grow after every connection
+echoed a message and went idle again. Kernel socket memory is not included.
+
+**GitHub-hosted runner** (2 vCPU, Linux 7.0, same matrix, 5 s per row; CI
+run 45348937313): a single connection did 47.5k round trips/s at a p50 of
+21 µs. 64 pipelined connections reached 441k req/s, and 64 KiB messages
+moved 4.2 GB/s through the loopback echo. Every run's job summary has the
+full table.
 
 **Throughput and latency** (`scripts/bench.sh`): 2-vCPU development sandbox,
 Linux 6.18, 2 server workers, with client and server **on the same 2 CPUs**.
